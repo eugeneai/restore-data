@@ -1,2 +1,5 @@
+lxml
+statscounter
 Pillow
-
+libextract
+requests
