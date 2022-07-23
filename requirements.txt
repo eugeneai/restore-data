@@ -3,3 +3,4 @@ statscounter
 Pillow
 libextract
 requests
+rdflib
