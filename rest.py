@@ -54,42 +54,16 @@ SELECT ?user ?created ?text ?title
 WHERE {
 
 ?file a nfo:PaginatedTextDocument .
+?file nie:contentCreated ?created .
+OPTIONAL { ?file nie:plainTextContent ?text . }
+OPTIONAL {
 ?file nco:creator ?creator .
 ?creator a nco:Contact .
 ?creator nco:fullname ?user .
-?file nie:contentCreated ?created .
-?file nie:plainTextContent ?text .
-
+}
 OPTIONAL { ?file nie:title ?title. }
 }
 """
-
-
-def proc_doc():
-    # for file in getfiles('f15213088.doc'):
-    for file in getfiles('*.doc*'):
-        g = tracker(file)
-
-        def _rep():
-            print("INFO: Cannot analyze '{}'".format(file))
-
-        if g is None:
-            _rep()
-        for row in g.query(QUERY_DOC):
-            user, created, text, title = [str(_) for _ in row]
-            text = text.replace('\r', '\n')
-            created = created.replace(':', "-")
-            path, name = op.split(file)
-            _, ext = op.splitext(name)
-            if title:
-                name = title[:100]
-                newname = "{}-{}-{}".format(user, name, created) + ext
-            else:
-                newname = "{}-{}-{}".format(user, created, name)
-            movefile(file, newname, debug=False)
-            break
-        else:
-            _rep()
 
 
 def proc_docx():
@@ -117,10 +91,46 @@ def proc_docx():
         movefile(file, newname, debug=False)
 
 
+def proc_ms(ext):
+    # for file in getfiles('f15213088.doc'):
+    for file in getfiles(ext):
+        g = tracker(file)
+
+        def _rep():
+            print("INFO: Cannot analyze '{}'".format(file))
+
+        if g is None:
+            _rep()
+
+        for row in g.query(QUERY_DOC):
+            user, created, text, title = row
+
+            path, name = op.split(file)
+            base, ext = op.splitext(name)
+
+            text = text[:100] if text else text
+            filetitle = (title or text or base) + ext
+            user, created, text, title = [str(_) for _ in row]
+            text = text.replace('\r', '\n')
+            # print(("'{}' " * 4).format(user, created, text, title))
+            created = created.replace(':', "-")
+
+            user = user or "NONE"
+
+            newname = "{}-{}-{}".format(user, created, filetitle)
+
+            movefile(file, newname, debug=False)
+            break
+        else:
+            _rep()
+
+
 def movefile(oldname, newname, targetdir=TGTDIR, debug=False):
     crs = [ord(c) for c in newname if ord(c) > 0]
     newname = ''.join([chr(c) for c in crs])
-    newname = newname.replace(' ', '_')
+    newname = newname.replace(' ',
+                              '_').replace("(", "_").replace(")", "_").replace(
+                                  '/', '_').replace('\\', '_')
     newfile = op.join(targetdir, newname)
     try:
         if not debug:
@@ -152,7 +162,9 @@ def proc_jpg():
                 newname = "{}-{}-{}-{}".format(make, model, date, name)
                 movefile(file, newname)
 
+
 if __name__ == "__main__":
     # proc_jpg()
-    # proc_doc()
-    proc_docx()
+    # proc_docx()
+    proc_ms('*.doc')
+    proc_ms('*.xls*')
