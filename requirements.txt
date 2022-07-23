@@ -4,3 +4,4 @@ Pillow
 libextract
 requests
 rdflib
+python-docx

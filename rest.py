@@ -6,6 +6,7 @@ import os.path as op
 import os
 from rdflib import Graph, Namespace, RDF
 import subprocess
+import docx
 
 SRCDIR = "/mnt/btrfs/restore/tmp"
 TGTDIR = "/mnt/btrfs/restore/tgt"
@@ -91,6 +92,30 @@ def proc_doc():
             _rep()
 
 
+def proc_docx():
+    for file in getfiles('*.docx'):
+
+        def _err():
+            print("ERROR: Cannot process '{}'".format(file))
+
+        try:
+            doc = docx.Document(file)
+        except ValueError:
+            _err()
+            continue
+
+        props = doc.core_properties
+
+        path, name = op.split(file)
+        base, ext = op.splitext(name)
+
+        user = props.author
+        created = props.created
+        name = props.title[:100] if props.title else base
+
+        newname = "{}-{}-{}".format(user, name, created) + ext
+        movefile(file, newname, debug=False)
+
 
 def movefile(oldname, newname, targetdir=TGTDIR, debug=False):
     crs = [ord(c) for c in newname if ord(c) > 0]
@@ -129,4 +154,5 @@ def proc_jpg():
 
 if __name__ == "__main__":
     # proc_jpg()
-    proc_doc()
+    # proc_doc()
+    proc_docx()
