@@ -4,6 +4,9 @@
 
 import mailbox
 import bs4
+import os.path as op
+
+DIR = '/mnt/btrfs/restore/tmp/mbox/Takeout/Post/'
 
 
 def get_html_text(html):
@@ -36,6 +39,26 @@ class GmailMboxMessage():
             email_messages = [email_payload]
         return [self._read_email_text(msg) for msg in email_messages]
 
+    def attachments(self):
+        if self.email_data.get_content_maintype() == 'multipart':
+            for part in self.email_data.walk():
+                if part.get_content_maintype() == 'multipart': continue
+                if part.get('Content-Disposition') is None: continue
+                filename = part.get_filename()
+                if filename is None:
+                    continue
+
+                # print(filename)
+                pathname = op.join(DIR, 'files', filename)
+                print(pathname, end='')
+                if op.exists(pathname):
+                    print(" exists ")
+                    continue
+                fb = open(pathname, 'wb')
+                fb.write(part.get_payload(decode=True))
+                fb.close()
+                print(' saved')
+
     def _get_email_messages(self, email_payload):
         for msg in email_payload:
             if isinstance(msg, (list, tuple)):
@@ -64,11 +87,10 @@ class GmailMboxMessage():
 
 ######################### End of library, example of use below
 
-mbox_obj = mailbox.mbox('/mnt/btrfs/restore/tmp/mbox/Takeout/Post/mbox1.mbox')
+mbox_obj = mailbox.mbox(op.join(DIR, 'mbox1.mbox'))
 
 for key in mbox_obj.iterkeys():
     print(key)
-
 
 # num_entries = len(mbox_obj)
 
@@ -76,3 +98,5 @@ for idx, email_obj in enumerate(mbox_obj):
     email_data = GmailMboxMessage(email_obj)
     email_data.parse_email()
     print('Parsing email {0}'.format(idx))
+    # print(email_data.read_email_payload())
+    print(email_data.attachments())
