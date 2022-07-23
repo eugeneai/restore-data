@@ -5,6 +5,7 @@
 import mailbox
 import bs4
 import os.path as op
+from email.header import decode_header
 
 DIR = '/mnt/btrfs/restore/tmp/mbox/Takeout/Post/'
 
@@ -45,19 +46,35 @@ class GmailMboxMessage():
                 if part.get_content_maintype() == 'multipart': continue
                 if part.get('Content-Disposition') is None: continue
                 filename = part.get_filename()
+
                 if filename is None:
                     continue
 
+                dec_obj = decode_header(filename)
+                s, enc = dec_obj[0]
+
+                if enc is None:
+                    filename = s
+                else:
+                    filename = s.decode(enc, errors='ignore')
+
                 # print(filename)
+                base, ext = op.splitext(filename)
+                filename = base[:70] + ext
+                filename = filename.replace("/", "-")
                 pathname = op.join(DIR, 'files', filename)
                 print(pathname, end='')
                 if op.exists(pathname):
                     print(" exists ")
                     continue
-                fb = open(pathname, 'wb')
-                fb.write(part.get_payload(decode=True))
-                fb.close()
-                print(' saved')
+                content = part.get_payload(decode=True)
+                if content:
+                    fb = open(pathname, 'wb')
+                    fb.write(content)
+                    fb.close()
+                    print(' saved')
+                else:
+                    print(' has no content')
 
     def _get_email_messages(self, email_payload):
         for msg in email_payload:
@@ -87,7 +104,7 @@ class GmailMboxMessage():
 
 ######################### End of library, example of use below
 
-mbox_obj = mailbox.mbox(op.join(DIR, 'mbox1.mbox'))
+mbox_obj = mailbox.mbox(op.join(DIR, 'mbox.mbox'))
 
 for key in mbox_obj.iterkeys():
     print(key)
