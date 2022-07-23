@@ -5,3 +5,4 @@ libextract
 requests
 rdflib
 python-docx
+bs4

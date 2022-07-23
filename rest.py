@@ -1,4 +1,4 @@
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from PIL.ExifTags import TAGS
 
 from glob import glob
@@ -7,6 +7,7 @@ import os
 from rdflib import Graph, Namespace, RDF
 import subprocess
 import docx
+import zipfile
 
 SRCDIR = "/mnt/btrfs/restore/tmp"
 TGTDIR = "/mnt/btrfs/restore/tgt"
@@ -91,7 +92,7 @@ def proc_docx():
         movefile(file, newname, debug=False)
 
 
-def proc_ms(ext):
+def proc_tr(ext, debug=False):
     # for file in getfiles('f15213088.doc'):
     for file in getfiles(ext):
         g = tracker(file)
@@ -119,7 +120,7 @@ def proc_ms(ext):
 
             newname = "{}-{}-{}".format(user, created, filetitle)
 
-            movefile(file, newname, debug=False)
+            movefile(file, newname, debug=debug)
             break
         else:
             _rep()
@@ -128,9 +129,16 @@ def proc_ms(ext):
 def movefile(oldname, newname, targetdir=TGTDIR, debug=False):
     crs = [ord(c) for c in newname if ord(c) > 0]
     newname = ''.join([chr(c) for c in crs])
-    newname = newname.replace(' ',
-                              '_').replace("(", "_").replace(")", "_").replace(
-                                  '/', '_').replace('\\', '_')
+
+    def cl(s):
+        if s in ' ()[]/\\\n\r\t':
+            return '_'
+        else:
+            return s
+
+    sl = [cl(c) for c in newname]
+    newname = ''.join(sl)
+
     newfile = op.join(targetdir, newname)
     try:
         if not debug:
@@ -139,10 +147,42 @@ def movefile(oldname, newname, targetdir=TGTDIR, debug=False):
     except ValueError:
         print("ERROR: Cannot rename '{}' to '{}' ".format(oldname, newname))
 
+def proc_zip():
+    for file in getfiles("*.zip"):
+        obj = zipfile.ZipFile(file, 'r')
+        try:
+            t = obj.testzip()
+        except RuntimeError:
+            print("ERROR: Cannot test '{}".format(file))
+            continue
+        except OSError:
+            print("ERROR: Cannot test, oserror '{}".format(file))
+            continue
+        if t is not None:
+            print("ERROR: Corrupt at '{}':{}".format(t, file))
+            continue
+        print("Content of the ZIP file {}: ".format(file))
 
-def proc_jpg():
-    for file in getfiles('*.jpg'):
-        image = Image.open(file)
+        content_list = obj.namelist()
+        for fname in content_list:
+            print(fname)
+            break
+        path, name = op.split(file)
+        base, ext = op.splitext(name)
+        newname = name + fname.replace('/', '-').replace('.', '-') + ext
+        movefile(file, newname, debug=False)
+        # content_list = obj.infolist()
+        # for info in content_list:
+        #     print(info)
+
+def proc_img(ext):
+    for file in getfiles(ext):
+        try:
+            image = Image.open(file)
+        except UnidentifiedImageError:
+            print("ERROR: image cannot be identified '{}'".format(file))
+            continue
+
         exif = image.getexif()
         if not exif:
             print("NO EXIF DATA:", file)
@@ -160,11 +200,18 @@ def proc_jpg():
                 ]
                 date = date.replace(" ", "-").replace(":", "-")
                 newname = "{}-{}-{}-{}".format(make, model, date, name)
-                movefile(file, newname)
+                movefile(file, newname, debug=True)
 
 
 if __name__ == "__main__":
-    # proc_jpg()
+    # proc_img('*.jpg')
     # proc_docx()
-    proc_ms('*.doc')
-    proc_ms('*.xls*')
+    # proc_tr('*.doc')
+    # proc_tr('*.xls*')
+    # proc_img('*.tif*')
+    # proc_tr('*.pdf')
+    # proc_tr('*.docx', debug=True)
+    proc_zip()
+
+
+# TODO: zip, 7z, rar
