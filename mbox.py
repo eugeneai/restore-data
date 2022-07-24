@@ -6,6 +6,8 @@ import mailbox
 import bs4
 import os.path as op
 from email.header import decode_header
+import os, time
+from datetime import datetime
 
 DIR = '/mnt/btrfs/restore/tmp/mbox/Takeout/Post/'
 
@@ -16,6 +18,36 @@ def get_html_text(html):
     except AttributeError:  # message contents empty
         return None
 
+timeformat = '%a, %d %b %Y %H:%M:%S %z'
+timeformatGMT = '%a, %d %b %Y %H:%M:%S %z (%Z)'
+
+def isTimeFormat(input, format):
+    try:
+        datetime.strptime(input, format)
+        return True
+    except ValueError:
+        return None
+
+# Some funcitons to convert time to a datetime element
+def createDateTime(timeString):
+    # dt = datetime.fromisoformat(timeString)
+    if isTimeFormat(timeString, timeformat):
+        dt = datetime.strptime(timeString, timeformat)
+        return dt
+    elif isTimeFormat(timeString, timeformatGMT):
+        dt = datetime.strptime(timeString, timeformatGMT)
+        return dt
+    else:
+        return None
+        # timeString1 = timeString.split(' (')[0]
+        # print(timeString, timeString1)
+        # if timeString == timeString1:
+        #     # raise ValueError('cannot convert {} '.format(timeString))
+        #     print('cannot convert {} '.format(timeString))
+        #     return None
+        # if isTimeFormat(timeString, timeformat):
+        #     dt = datetime.strptime(timeString, timeformat)
+        #     return dt
 
 class GmailMboxMessage():
 
@@ -66,15 +98,24 @@ class GmailMboxMessage():
                 print(pathname, end='')
                 if op.exists(pathname):
                     print(" exists ")
-                    continue
-                content = part.get_payload(decode=True)
-                if content:
-                    fb = open(pathname, 'wb')
-                    fb.write(content)
-                    fb.close()
-                    print(' saved')
                 else:
-                    print(' has no content')
+                    content = part.get_payload(decode=True)
+                    if content:
+                        fb = open(pathname, 'wb')
+                        fb.write(content)
+                        fb.close()
+                        print(' saved')
+                    else:
+                        print(' has no content')
+                # set date to message date
+
+                # d = self.email_data['date']
+                # try:
+                #     dt = createDateTime(d)
+                #     print(time.mktime(dt.timetuple()))
+                # except ValueError:
+                #     pass
+
 
     def _get_email_messages(self, email_payload):
         for msg in email_payload:
@@ -104,12 +145,14 @@ class GmailMboxMessage():
 
 ######################### End of library, example of use below
 
-mbox_obj = mailbox.mbox(op.join(DIR, 'mbox.mbox'))
+mbox_obj = mailbox.mbox(op.join(DIR, 'mbox1.mbox'))
 
 for key in mbox_obj.iterkeys():
     print(key)
 
 # num_entries = len(mbox_obj)
+
+print(datetime.now())
 
 for idx, email_obj in enumerate(mbox_obj):
     email_data = GmailMboxMessage(email_obj)
